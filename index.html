@@ -86,140 +86,160 @@
   </div>
 
   <div id="debug" style="display:none; font:12px/1.4 monospace; white-space:pre-wrap; background:#fff; padding:10px; border:1px solid #ddd; border-radius:8px;"></div>
-  <script>
-    const DEBUG = true;
-    function dbg(...a){ if(!DEBUG) return;
-      const d = document.getElementById('debug'); d.style.display='block';
-      d.textContent += a.map(x => typeof x==='string'? x : JSON.stringify(x,null,2)).join(' ') + '\n';
-    }
-    dbg('GET', `${API}?action=list_events`);
-    const res = await fetch(`${API}?action=list_events`, { cache:'no-store' });
-    dbg('STATUS', res.status);
-    const data = await res.json();
-    dbg('BODY', data);
-  </script>
   
-  <script>
-    const tg = window.Telegram.WebApp;
-    const welcome = document.getElementById("welcome");
-    const notTg = document.getElementById("notTelegram");
-    tg.expand(); tg.ready();
-    const INIT = tg.initData; // signed, for secure writes
-    const API  = "https://script.google.com/macros/s/AKfycby6rtizVvtmUh9pohkXMXUwrAeQOdaAxcjf47AprBPN6Dk2yBoTFFhXZJ4wL7ZhvM4G9A/exec";
+<script>
+  // Safe detection: only set tg if the SDK AND WebApp exist
+  const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
 
-    function personalize() {
-      if (!tg) {
-        // Not inside Telegram WebView → show fallback
-        notTg.style.display = "block";
-        return;
-      }
-      tg.expand();
-      tg.ready();
+  const welcome = document.getElementById("welcome");
+  const notTg   = document.getElementById("notTelegram");
 
-      // Safe for UI personalization (not for security-sensitive logic)
-      const user = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
-      if (user) {
-        const uname = user.username ? `@${user.username}` : (user.first_name || "friend");
-        welcome.textContent = `Welcome, ${uname}!`;
-      } else {
-        welcome.textContent = "Welcome!";
-      }
+  // Your Apps Script endpoint:
+  const API  = "https://script.google.com/macros/s/AKfycby6rtizVvtmUh9pohkXMXUwrAeQOdaAxcjf47AprBPN6Dk2yBoTFFhXZJ4wL7ZhvM4G9A/exec";
 
-      // Example: handle Register click (placeholder)
-      document.getElementById("registerBtn").addEventListener("click", () => {
-        tg.showPopup({ title: "Coming soon!", message: "We’ll enable registration here later." });
-      });
+  // "Inside Telegram" detection: initData is non-empty only in real WebApp
+  const inTelegram = !!(tg && typeof tg.initData === "string" && tg.initData.length > 0);
+  const INIT = inTelegram ? tg.initData : ""; // signed payload only when available
 
-      // Optional: read start parameter you passed via ?startapp=...
-      // const startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ? tg.initDataUnsafe.start_param : null; // e.g., event id
-      // console.log("Start param:", startParam);
+  function personalize() {
+    if (!inTelegram) {
+      // Not inside Telegram WebView → show fallback block
+      notTg.style.display = "block";
+      welcome.textContent = "Welcome!";
+      return;
     }
+    // We're inside Telegram WebApp — safe to call these now
+    tg.expand();
+    tg.ready();
 
-    
-    async function listEvents() {
-      const res = await fetch(`${API}?action=list_events`, { cache:'no-store' });
-      const { ok, events, error } = await res.json();
-      if (!ok) return alert(error);
-      const tbody = document.getElementById("eventsBody");
-      tbody.innerHTML = "";
-      events.forEach(ev => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${ev.title}</td>
-          <td>${ev.date}</td>
-          <td>${ev.place}</td>
-          <td><button class="btn-enroll">Enroll</button></td>`;
-        tr.querySelector("button").onclick = () => enroll(ev.event_id);
-        tbody.appendChild(tr);
-      });
+    const user = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
+    if (user) {
+      const uname = user.username ? `@${user.username}` : (user.first_name || "friend");
+      welcome.textContent = `Welcome, ${uname}!`;
+    } else {
+      welcome.textContent = "Welcome!";
     }
+  }
 
-    async function enroll(eventId) {
-      const res = await fetch(API, {
-        method: 'POST',
-        body: JSON.stringify({ action:'enroll', init_data: INIT, event_id: eventId })
-      });
-      const j = await res.json();
+  async function listEvents() {
+    const res = await fetch(`${API}?action=list_events`, { cache:'no-store' });
+    const { ok, events, error } = await res.json();
+    if (!ok) { alert(error || "Failed to load events"); return; }
+
+    const tbody = document.getElementById("eventsBody");
+    tbody.innerHTML = "";
+    if (!Array.isArray(events) || events.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4">No events</td></tr>`;
+      return;
+    }
+    events.forEach(ev => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${ev.title ?? ""}</td>
+        <td>${ev.date ?? ""}</td>
+        <td>${ev.place ?? ""}</td>
+        <td><button class="btn-enroll">Enroll</button></td>`;
+      tr.querySelector("button").onclick = () => enroll(ev.event_id);
+      tbody.appendChild(tr);
+    });
+  }
+
+  // No custom headers → avoids Safari/iOS preflight issues
+  async function enroll(eventId) {
+    const res = await fetch(API, {
+      method: 'POST',
+      body: JSON.stringify({ action:'enroll', init_data: INIT, event_id: eventId })
+    });
+    const j = await res.json();
+    if (inTelegram && tg.showPopup) {
       tg.showPopup({ title: j.ok ? "Enrolled ✅" : "Error", message: j.ok ? "See you there!" : (j.error||"Try again") });
-      if (j.ok) loadMe();
+    } else {
+      alert(j.ok ? "Enrolled ✅" : (j.error||"Try again"));
     }
+    if (j.ok) loadMe();
+  }
 
-    async function unenroll(eventId) {
-      const res = await fetch(API, {
-        method: 'POST',
-        body: JSON.stringify({ action:'unenroll', init_data: INIT, event_id: eventId })
-      });
-      const j = await res.json();
+  async function unenroll(eventId) {
+    const res = await fetch(API, {
+      method: 'POST',
+      body: JSON.stringify({ action:'unenroll', init_data: INIT, event_id: eventId })
+    });
+    const j = await res.json();
+    if (inTelegram && tg.showPopup) {
       tg.showPopup({ title: j.ok ? "Unenrolled ✅" : "Error", message: j.ok ? "See you next time!" : (j.error||"Try again") });
-      if (j.ok) loadMe();
+    } else {
+      alert(j.ok ? "Unenrolled ✅" : (j.error||"Try again"));
+    }
+    if (j.ok) loadMe();
+  }
+
+  async function loadMe() {
+    // If not in Telegram, skip calling /me (no init_data to verify)
+    if (!inTelegram) return;
+
+    const res = await fetch(`${API}?action=me&init_data=${encodeURIComponent(INIT)}`, { cache:'no-store' });
+    const j = await res.json();
+
+    // My enrollments
+    const list = document.getElementById("myEnrollments");
+    list.innerHTML = "";
+    if (j.ok && Array.isArray(j.enrollments) && j.enrollments.length) {
+      j.enrollments.forEach(r => {
+        const li = document.createElement("li");
+        li.textContent = `Enrolled in: ${r.event_id} at ${r.ts}`;
+        list.appendChild(li);
+      });
+    } else {
+      list.innerHTML = "<li>No enrollments yet.</li>";
     }
 
-    async function loadMe() {
-      const res = await fetch(`${API}?action=me&init_data=${encodeURIComponent(INIT)}`);
-      const j = await res.json();
-      const list = document.getElementById("myEnrollments");
-      list.innerHTML = "";
-      if (j.ok && j.enrollments.length) {
-        j.enrollments.forEach(r => {
-          const li = document.createElement("li");
-          li.textContent = `Enrolled in: ${r.event_id} at ${r.ts}`;
-          list.appendChild(li);
-        });
-      } else {
-        list.innerHTML = "<li>No enrollments yet.</li>";
-      }
-      // Admin panel
-      if (j.ok && j.is_admin) {
-        document.getElementById("admin").style.display = "block";
-      }
+    // Admin panel toggle AND attach handler
+    if (j.ok && j.is_admin) {
+      const admin = document.getElementById("admin");
+      admin.style.display = "block";
+      addEventHandle(); // <-- attach submit handler once panel is shown
     }
+  }
 
-    // Admin: submit handler
-    document.getElementById("addEventForm")?.addEventListener("submit", async (e) => {
+  // Attach submit handler for Admin form
+  function addEventHandle() {
+    const form = document.getElementById("addEventForm");
+    if (!form) return;
+    // Avoid double-binding
+    if (form.dataset.bound === "1") return;
+    form.dataset.bound = "1";
+
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const fd = new FormData(e.target);
-      // Build payload
+      const fd = new FormData(form);
       const ev = Object.fromEntries(fd.entries());
-      // Simple normalization
+      // Normalize & validate minimal fields
       ev.total_slots = ev.total_slots ? Number(ev.total_slots) : '';
       ev.status = ev.status || 'Open';
-  
+
       const res = await fetch(API, {
         method:'POST',
         body: JSON.stringify({ action:'add_event', init_data: INIT, event: ev })
       });
       const j = await res.json();
-      tg.showPopup({ title: j.ok ? "Event added" : "Error", message: j.ok ? "Published." : (j.error||"No access") });
+      if (inTelegram && tg.showPopup) {
+        tg.showPopup({ title: j.ok ? "Event added" : "Error", message: j.ok ? "Published." : (j.error||"No access") });
+      } else {
+        alert(j.ok ? "Event added" : (j.error||"No access"));
+      }
       if (j.ok) {
-        e.target.reset();
+        form.reset();
         await listEvents();
       }
     });
+  }
 
-    personalize();
-    listEvents();
-    loadMe();
-  </script>
+  // Boot
+  personalize();
+  listEvents();
+  loadMe();
+</script>
+
 </body>
 </html>
 
