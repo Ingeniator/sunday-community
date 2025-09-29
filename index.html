@@ -71,7 +71,7 @@
         <input name="total_slots" type="number" min="0" placeholder="48">
       </label>
       <label>Action URL
-        <input name="action_url" placeholder="https://t.me/YourBot?startapp=evt_2025_10_05">
+        <input name="action_url" placeholder="https://t.me/padeldat?startapp=evt_2025_10_05">
       </label>
       <button type="submit" class="btn-enroll">Add Event</button>
     </div>
@@ -84,6 +84,20 @@
       <!-- Deep link opens your bot and launches this page as a WebApp -->
       <a id="openInTg" class="btn" href="https://t.me/padelday_bot?startapp=hello">Open in Telegram</a>
   </div>
+
+  <div id="debug" style="display:none; font:12px/1.4 monospace; white-space:pre-wrap; background:#fff; padding:10px; border:1px solid #ddd; border-radius:8px;"></div>
+  <script>
+    const DEBUG = true;
+    function dbg(...a){ if(!DEBUG) return;
+      const d = document.getElementById('debug'); d.style.display='block';
+      d.textContent += a.map(x => typeof x==='string'? x : JSON.stringify(x,null,2)).join(' ') + '\n';
+    }
+    dbg('GET', `${API}?action=list_events`);
+    const res = await fetch(`${API}?action=list_events`, { cache:'no-store' });
+    dbg('STATUS', res.status);
+    const data = await res.json();
+    dbg('BODY', data);
+  </script>
   
   <script>
     const tg = window.Telegram.WebApp;
@@ -103,7 +117,7 @@
       tg.ready();
 
       // Safe for UI personalization (not for security-sensitive logic)
-      const user = tg.initDataUnsafe?.user;
+      const user = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
       if (user) {
         const uname = user.username ? `@${user.username}` : (user.first_name || "friend");
         welcome.textContent = `Welcome, ${uname}!`;
@@ -117,13 +131,13 @@
       });
 
       // Optional: read start parameter you passed via ?startapp=...
-      // const startParam = tg.initDataUnsafe?.start_param; // e.g., event id
+      // const startParam = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ? tg.initDataUnsafe.start_param : null; // e.g., event id
       // console.log("Start param:", startParam);
     }
 
     
     async function listEvents() {
-      const res = await fetch(`${API}?action=list_events`);
+      const res = await fetch(`${API}?action=list_events`, { cache:'no-store' });
       const { ok, events, error } = await res.json();
       if (!ok) return alert(error);
       const tbody = document.getElementById("eventsBody");
@@ -142,11 +156,21 @@
 
     async function enroll(eventId) {
       const res = await fetch(API, {
-        method: 'POST', headers:{'Content-Type':'application/json'},
+        method: 'POST',
         body: JSON.stringify({ action:'enroll', init_data: INIT, event_id: eventId })
       });
       const j = await res.json();
       tg.showPopup({ title: j.ok ? "Enrolled ✅" : "Error", message: j.ok ? "See you there!" : (j.error||"Try again") });
+      if (j.ok) loadMe();
+    }
+
+    async function unenroll(eventId) {
+      const res = await fetch(API, {
+        method: 'POST',
+        body: JSON.stringify({ action:'unenroll', init_data: INIT, event_id: eventId })
+      });
+      const j = await res.json();
+      tg.showPopup({ title: j.ok ? "Unenrolled ✅" : "Error", message: j.ok ? "See you next time!" : (j.error||"Try again") });
       if (j.ok) loadMe();
     }
 
@@ -181,7 +205,7 @@
       ev.status = ev.status || 'Open';
   
       const res = await fetch(API, {
-        method:'POST', headers:{'Content-Type':'application/json'},
+        method:'POST',
         body: JSON.stringify({ action:'add_event', init_data: INIT, event: ev })
       });
       const j = await res.json();
