@@ -43,6 +43,42 @@
     <ul id="myEnrollments"></ul>
   </section>
 
+  <section id="admin" style="display:none; margin-top:24px;">
+  <h2>🛠 Admin: Add Event</h2>
+  <form id="addEventForm">
+    <div style="display:grid; gap:8px; max-width:520px;">
+      <label>Event ID
+        <input name="event_id" placeholder="evt_2025_10_05" required>
+      </label>
+      <label>Title
+        <input name="title" placeholder="Weekend Tournament" required>
+      </label>
+      <label>Date
+        <input name="date" type="date" required>
+      </label>
+      <label>Place
+        <input name="place" placeholder="Court A">
+      </label>
+      <label>Status
+        <select name="status">
+          <option>Open</option>
+          <option>Info</option>
+          <option>RSVP</option>
+          <option>Archived</option>
+        </select>
+      </label>
+      <label>Total slots
+        <input name="total_slots" type="number" min="0" placeholder="48">
+      </label>
+      <label>Action URL
+        <input name="action_url" placeholder="https://t.me/YourBot?startapp=evt_2025_10_05">
+      </label>
+      <button type="submit" class="btn-enroll">Add Event</button>
+    </div>
+  </form>
+</section>
+
+
   <div id="notTelegram" style="display:none; margin-top:24px;">
       <p>Open this page inside Telegram to see your personalized view.</p>
       <!-- Deep link opens your bot and launches this page as a WebApp -->
@@ -128,16 +164,33 @@
       } else {
         list.innerHTML = "<li>No enrollments yet.</li>";
       }
+      // Admin panel
+      if (j.ok && j.is_admin) {
+        document.getElementById("admin").style.display = "block";
+      }
     }
 
-    async function addEvent(ev) {
+    // Admin: submit handler
+    document.getElementById("addEventForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      // Build payload
+      const ev = Object.fromEntries(fd.entries());
+      // Simple normalization
+      ev.total_slots = ev.total_slots ? Number(ev.total_slots) : '';
+      ev.status = ev.status || 'Open';
+  
       const res = await fetch(API, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ action:'add_event', init_data: INIT, event: ev })
       });
       const j = await res.json();
       tg.showPopup({ title: j.ok ? "Event added" : "Error", message: j.ok ? "Published." : (j.error||"No access") });
-    }
+      if (j.ok) {
+        e.target.reset();
+        await listEvents();
+      }
+    });
 
     personalize();
     listEvents();
