@@ -115,6 +115,11 @@
     d.textContent += a.map(x => typeof x === "string" ? x : JSON.stringify(x, null, 2)).join(" ") + "\n";
   }
 
+  dbg("inTelegram:", inTelegram ? "yes" : "no");
+  dbg("INIT length:", (tg && tg.initData) ? tg.initData.length : 0);
+  dbg("unsafe user:", tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? JSON.stringify(tg.initDataUnsafe.user) : "none");
+  dbg("start_param:", tg && tg.initDataUnsafe ? tg.initDataUnsafe.start_param : "none");
+  
   // Show user IDs (unsafe vs. server-verified)
   async function showUserIds(){
     const inTelegram = !!(tg && typeof tg.initData === "string" && tg.initData.length > 0);
