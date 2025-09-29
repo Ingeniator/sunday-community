@@ -70,6 +70,50 @@
     }
 
     personalize();
-  </script>
+</script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+  const tg = window.Telegram.WebApp;
+  tg.expand(); tg.ready();
+  const INIT = tg.initData; // signed, for secure writes
+  const API  = "https://script.google.com/macros/s/AKfycby6rtizVvtmUh9pohkXMXUwrAeQOdaAxcjf47AprBPN6Dk2yBoTFFhXZJ4wL7ZhvM4G9A/exec";
+
+  async function listEvents(){
+    const res = await fetch(`${API}?action=list_events`, {cache:'no-store'});
+    const { ok, events, error } = await res.json();
+    if (!ok) return alert(error);
+    // TODO: render your table
+    console.log(events);
+  }
+
+  async function enroll(eventId){
+    const res = await fetch(API, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'enroll', init_data: INIT, event_id: eventId })
+    });
+    const j = await res.json();
+    tg.showPopup({ title: j.ok ? "Enrolled ✅" : "Error", message: j.ok ? "See you there!" : (j.error||"Try again") });
+  }
+
+  async function loadMe(){
+    const res = await fetch(`${API}?action=me&init_data=` + encodeURIComponent(INIT), {cache:'no-store'});
+    const j = await res.json();
+    console.log('me:', j);
+    // TODO: show “Welcome, @username” and their enrollments
+  }
+
+  async function addEvent(ev) {
+    const res = await fetch(API, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'add_event', init_data: INIT, event: ev })
+    });
+    const j = await res.json();
+    tg.showPopup({ title: j.ok ? "Event added" : "Error", message: j.ok ? "Published." : (j.error||"No access") });
+  }
+  
+  listEvents();
+  loadMe();
+</script>
+
 </body>
 </html>
