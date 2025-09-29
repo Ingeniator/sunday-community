@@ -5,12 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Community Page</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
   <main>
-    <h1>🏓 Community Page</h1>
-    <p>Welcome! This is our pinned page for events, rules, and news.</p>
+    <h1 id="title">🏓 Community Page</h1>
+    <p id="welcome" style="font-weight:600;"></p>
 
     <section>
       <h2>📜 Rules</h2>
@@ -27,14 +28,48 @@
       🗓 5 October • 📍 Court A</p>
       <button id="registerBtn">Register</button>
     </section>
+
+    <div id="notTelegram" style="display:none; margin-top:24px;">
+      <p>Open this page inside Telegram to see your personalized view.</p>
+      <!-- Deep link opens your bot and launches this page as a WebApp -->
+      <a id="openInTg" class="btn" href="https://t.me/YourBot?startapp=hello">Open in Telegram</a>
+    </div>
   </main>
 
   <script>
-    const tg = window.Telegram.WebApp;
-    tg.expand();
-    document.getElementById("registerBtn").addEventListener("click", () => {
-      tg.showPopup({ title: "Coming soon!", message: "Registration will be enabled later." });
-    });
+    const tg = window.Telegram?.WebApp;
+    const welcome = document.getElementById("welcome");
+    const notTg = document.getElementById("notTelegram");
+
+    function personalize() {
+      if (!tg) {
+        // Not inside Telegram WebView → show fallback
+        notTg.style.display = "block";
+        return;
+      }
+      tg.expand();
+      tg.ready();
+
+      // Safe for UI personalization (not for security-sensitive logic)
+      const user = tg.initDataUnsafe?.user;
+      if (user) {
+        const uname = user.username ? `@${user.username}` : (user.first_name || "friend");
+        welcome.textContent = `Welcome, ${uname}!`;
+      } else {
+        welcome.textContent = "Welcome!";
+      }
+
+      // Example: handle Register click (placeholder)
+      document.getElementById("registerBtn").addEventListener("click", () => {
+        tg.showPopup({ title: "Coming soon!", message: "We’ll enable registration here later." });
+      });
+
+      // Optional: read start parameter you passed via ?startapp=...
+      // const startParam = tg.initDataUnsafe?.start_param; // e.g., event id
+      // console.log("Start param:", startParam);
+    }
+
+    personalize();
   </script>
 </body>
 </html>
