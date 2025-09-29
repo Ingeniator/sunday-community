@@ -163,7 +163,7 @@
 
     // 4) test
     try {
-      const res = await fetch(`${API}?action=getme}`, { cache: "no-store" });
+      const res = await fetch(`${API}?action=getme`, { cache: "no-store" });
       const j = await res.json();
       dbg("getMe:", j); // <— always print
     } catch (e) {
