@@ -156,14 +156,20 @@
     try {
       const res = await fetch(`${API}?action=debug_sig&init_data=${encodeURIComponent(INIT)}`, { cache: "no-store" });
       const j = await res.json();
-      if (j.ok && j.user) {
-        dbg("Server-verified debug_sig:", j || "");
-      } else {
-        dbg("Server debug_sig failed:", j);
-      }
+      dbg("debug_sig:", j); // <— always print
     } catch (e) {
       dbg("Server debug_sig error:", String(e));
     }
+
+    // 4) test
+    try {
+      const res = await fetch(`${API}?action=getMe&init_data=${encodeURIComponent(INIT)}`, { cache: "no-store" });
+      const j = await res.json();
+      dbg("getMe:", j); // <— always print
+    } catch (e) {
+      dbg("Server getMe error:", String(e));
+    }
+
 
   }
   
