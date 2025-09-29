@@ -84,9 +84,10 @@
       <!-- Deep link opens your bot and launches this page as a WebApp -->
       <a id="openInTg" class="btn" href="https://t.me/padelday_bot?startapp=hello">Open in Telegram</a>
   </div>
+    
+<button id="toggleDebug" style="position:fixed;right:12px;bottom:12px;padding:6px 10px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer;">🐞 Debug</button>
 
-  <div id="debug" style="display:none; font:12px/1.4 monospace; white-space:pre-wrap; background:#fff; padding:10px; border:1px solid #ddd; border-radius:8px;"></div>
-  
+<div id="debug" style="font:12px monospace; white-space:pre-wrap; background:#eee; padding:8px; display:none;"></div>
 <script>
   // Safe detection: only set tg if the SDK AND WebApp exist
   const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
@@ -101,6 +102,55 @@
   const inTelegram = !!(tg && typeof tg.initData === "string" && tg.initData.length > 0);
   const INIT = inTelegram ? tg.initData : ""; // signed payload only when available
 
+  // Toggle debug panel
+  document.getElementById("toggleDebug").addEventListener("click", () => {
+    const d = document.getElementById("debug");
+    d.style.display = d.style.display === "none" ? "block" : "none";
+  });
+  
+  // Helper logger
+  function dbg(...a){
+    const d = document.getElementById("debug");
+    d.style.display = "block";
+    d.textContent += a.map(x => typeof x === "string" ? x : JSON.stringify(x, null, 2)).join(" ") + "\n";
+  }
+
+  // Show user IDs (unsafe vs. server-verified)
+  async function showUserIds(){
+    const inTelegram = !!(tg && typeof tg.initData === "string" && tg.initData.length > 0);
+  
+    if (!inTelegram) {
+      dbg("Not in Telegram WebApp. No Telegram user id available.");
+      dbg("Tip: open via https://t.me/<YourBot>?startapp=hello");
+      return;
+    }
+  
+    // 1) Client (unsafe) ID
+    const u = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
+    if (u) {
+      dbg("Client (unsafe) user.id:", u.id, "username:", u.username || "");
+    } else {
+      dbg("Client (unsafe) user is missing.");
+    }
+  
+    // 2) Server-verified ID via /me (or /whoami)
+    try {
+      const res = await fetch(`${API}?action=me&init_data=${encodeURIComponent(INIT)}`, { cache: "no-store" });
+      const j = await res.json();
+      if (j.ok && j.user) {
+        dbg("Server-verified user.id:", j.user.id, "username:", j.user.username || "");
+        if (j.is_admin !== undefined) dbg("is_admin:", j.is_admin);
+      } else {
+        dbg("Server verification failed:", j);
+      }
+    } catch (e) {
+      dbg("Server verification error:", String(e));
+    }
+  }
+  
+  // Call it on load
+  showUserIds();
+  
   function personalize() {
     if (!inTelegram) {
       // Not inside Telegram WebView → show fallback block
