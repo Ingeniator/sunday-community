@@ -193,6 +193,10 @@
       list.innerHTML = "<li>No enrollments yet.</li>";
     }
 
+    if (j.ok) {
+      document.getElementById("welcome").textContent += ` (ID: ${j.user.id})`;
+    }
+    
     // Admin panel toggle AND attach handler
     if (j.ok && j.is_admin) {
       const admin = document.getElementById("admin");
