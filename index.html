@@ -151,6 +151,20 @@
     } catch (e) {
       dbg("Server verification error:", String(e));
     }
+
+    // 3) Server-verified DEBUG SIGNATURE
+    try {
+      const res = await fetch(`${API}?action=debug_sig&init_data=${encodeURIComponent(INIT)}`, { cache: "no-store" });
+      const j = await res.json();
+      if (j.ok && j.user) {
+        dbg("Server-verified debug_sig:", j || "");
+      } else {
+        dbg("Server debug_sig failed:", j);
+      }
+    } catch (e) {
+      dbg("Server debug_sig error:", String(e));
+    }
+
   }
   
   // Call it on load
